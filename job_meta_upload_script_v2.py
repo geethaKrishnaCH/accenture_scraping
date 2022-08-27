@@ -169,7 +169,6 @@ for job url {j_url} in status table {self.company}_job_sc_stat \
     localFilePath=''):
         '''Uploads the passed data in job data table'''
         try:
-            create_trial_job_meta_tb()
             md5_chksum = hashlib.md5((f"{postauth}, {postcontent}, {posttitle},\
 {companyname},{location}, {jobtype}, {search_page_no},{job_url}, {qualification}, {skills},\
 {experience},{salary}, {imp_info},{company_website}, {company_tagline},\
@@ -369,7 +368,8 @@ fetching Not Scraped URLs from table {self.company}_job_sc_stat : {fth_err}')
         self.cur.close()
         self.con.close()
 
-        from_addr = os.environ.get('RIV_EMAIL')
+        # from_addr = os.environ.get('RIV_EMAIL')
+        from_addr = DEV_MAIL
         to_addr = DEV_MAIL
         subject = f'Log File for {self.company} Job Portal'
         content = f'Please see the attached Log File for {self.company} Job Portal'

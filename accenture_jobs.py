@@ -16,7 +16,7 @@ from job_meta_upload_script_v2 import JobsMeta
 config_rdr=ConfigParser()
 config_rdr.read('db_config.ini')
 DEV_MAIL=config_rdr.get('rivan_job_db','dev_mail')
-POST_AUTHOR=config_rdr.get('post_author_no','Rutwik')
+POST_AUTHOR=config_rdr.get('post_author_no','Jhansi')
 
 class Accenture:
     '''Creating Wipro class containing all the methods.'''
@@ -39,12 +39,13 @@ class Accenture:
         self.base_url = "https://www.accenture.com/api/sitecore/JobSearch/FindJobs"
         # initilize total_count
         self.total_count = 0
-        self.getJobURLs("total_count")
+        self.fetch_job_links("total_count")
         
-    def getJobURLs(self, key, params = {"first": 1, "size": 0}):
+    def fetch_job_links(self, key, params = {"first": 1, "size": 0}):
         # key can be either `jobs`` or `total_count``
         # for total_count `params` will not be passed
         # for jobs `params` have to be passed
+        print(params)
         payload = {
             "f": params["first"],
             "s": params["size"],
@@ -73,21 +74,27 @@ class Accenture:
                     self.threadlock.acquire()
                     self.dbObj.link_insertion(page_url,job_url)
                     self.threadlock.release()
+                    self.logger_ob.info(f"Inserted {job_url}")
 
         except Exception as resp_err:
             self.logger_ob.critical(f'Error while requesting and getting json data from {self.base_url} : {resp_err}')
             self.dbObj.exit_fun()
     
     def insertJobLinks(self):
-        pages = list(range(floor(self.total_count/self.page_size))) 
+        pages = list(range(floor(self.total_count/self.page_size)))
+        pages = pages[530:] 
+        print(pages)
         pager = []
         for page in pages:
             pager.append({
-                "first": page*100+1,
-                "size": 100
+                "first": page*self.page_size+1,
+                "size": self.page_size
             })
+        print(len(pager))
         with ThreadPoolExecutor() as fetch_links_executor:
-            fetch_links_executor.map(self.getJobURLs, ["jobs"]*len(pager), pager)
+            fetch_links_executor.map(self.fetch_job_links, ["jobs"]*len(pager), pager)
+
+        print("Inserted into status table")
 
     def scrape_job_and_insert(page_job_urls):
         print("scrape_job_and_insert()")
@@ -140,7 +147,7 @@ class Accenture:
                     elif 'Educational Qualification' in text:
                         qualification = ".".join(text.split(':')[1:]).strip()
             self.threadlock.acquire()
-            self.dbObj.upload_job_meta_upd(post_author_no, postcontent, posttitle, companyname, location, jobtype, 
+            self.dbObj.upload_job_meta_upd(POST_AUTHOR, postcontent, posttitle, companyname, location, jobtype, 
                                 search_page_no, job_url, qualification, skills, experience, salary, 
                                 imp_info)
             self.dbObj.change_status(job_url)
@@ -161,6 +168,7 @@ if __name__ == '__main__':
     obj = Accenture('accenture')
     obj.dbObj.create_sc_stat_tb()
     obj.insertJobLinks()
+    obj.scrape_jobs_multi_thread()
     print(f'Time taken to complete scraping all {obj.count} is : {time.time()-t1}s')
     if os.stat(f'{obj.company}_logs_{date.today().strftime("%d_%m_%Y")}.log').st_size!=0:
         obj.dbObj.mail_log_file()
