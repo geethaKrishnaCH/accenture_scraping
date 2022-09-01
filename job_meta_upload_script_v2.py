@@ -16,11 +16,11 @@ from mysql import connector
 config_rdr=ConfigParser()#object to read .ini file
 config_rdr.read('db_config.ini')
 
-DB_HOST=config_rdr.get('rivan_job_db','db_host')
-DB_USR=config_rdr.get('rivan_job_db','db_usr')
-DB_PWD=config_rdr.get('rivan_job_db','db_pwd')
-DB_NAME=config_rdr.get('rivan_job_db','db_name')
-DEV_MAIL=config_rdr.get('rivan_job_db','dev_mail')
+DB_HOST=config_rdr.get('jinternal_db','db_host')
+DB_USR=config_rdr.get('jinternal_db','db_usr')
+DB_PWD=config_rdr.get('jinternal_db','db_pwd')
+DB_NAME=config_rdr.get('jinternal_db','db_name')
+DEV_MAIL=config_rdr.get('dev_mails','dev_mail')
 
 class JobsMeta:
     '''Contains methods for performing database operations'''
@@ -403,7 +403,8 @@ fetching Not Scraped URLs from table {self.company}_job_sc_stat : {fth_err}')
                     self.logger_objt.critical(f'Internet Connectivity Issue : {con_stat[1]}')
                     self.exit_fun()
                 server = smtplib.SMTP('smtp.dreamhost.com', 587)
-                server.login(from_addr, os.environ.get('RIV_PWD'))
+                # server.login(from_addr, os.environ.get('RIV_PWD'))
+                server.login(from_addr, 'CxYxceaD')
                 server.send_message(msg, from_addr=from_addr, to_addrs=[to_addr])
             except Exception as em_log_err:
                 print(f'Error while logging in to server and sending mail : {em_log_err}')

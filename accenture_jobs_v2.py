@@ -15,7 +15,7 @@ from job_meta_upload_script_v2 import JobsMeta
 
 config_rdr=ConfigParser()
 config_rdr.read('db_config.ini')
-DEV_MAIL=config_rdr.get('rivan_job_db','dev_mail')
+DEV_MAIL=config_rdr.get('dev_mails','dev_mail')
 POST_AUTHOR=config_rdr.get('post_author_no','Jhansi')
 
 class Accenture:
@@ -163,8 +163,8 @@ class Accenture:
 if __name__ == '__main__':
     t1=time.time()
     obj = Accenture('accenture')
-    # obj.dbObj.create_sc_stat_tb()
-    # obj.insertJobLinks()
+    obj.dbObj.create_sc_stat_tb()
+    obj.insertJobLinks()
     obj.scrape_jobs_multi_thread()
     print(f'Time taken to complete scraping all {obj.total_count} is : {time.time()-t1}s')
     if os.stat(f'{obj.company}_logs_{date.today().strftime("%d_%m_%Y")}.log').st_size!=0:
