@@ -45,6 +45,17 @@ class Accenture:
         # key can be either `jobs`` or `total_count``
         # for total_count `params` will not be passed
         # for jobs `params` have to be passed
+
+        headers = {
+            "authority": "www.accenture.com",
+            "method": "POST",
+            "path": "/api/sitecore/JobSearch/FindJobs",
+            "scheme": "https",
+            "accept": "application/json, text/javascript, */*; q=0.01",
+            "content-type": "application/json; charset=UTF-8",
+            "origin": "https://www.accenture.com"
+        }
+
         payload = {
             "f": params["first"],
             "s": params["size"],
@@ -61,7 +72,7 @@ class Accenture:
         }
 
         try: 
-            response =  self.session.post(self.base_url,json = payload)
+            response =  self.session.post(self.base_url,json = payload, headers=headers)
             json_data = response.json()
             if key == "total_count":
                 self.total_count = json_data['total']
@@ -94,10 +105,16 @@ class Accenture:
     def scrape_job_and_insert(self, page_job_urls):
         page_url = page_job_urls[0]
         job_url = page_job_urls[1]
-
         search_page_no = int(page_url.split("pg=")[1].split("&vw")[0])
+        headers = {
+            "authority": "www.accenture.com",
+            "method": "GET",
+            "scheme": "https",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+            "referer": page_url
+        }
         try:
-          response = self.session.get(job_url)
+          response = self.session.get(job_url, headers=headers)
           soup = BeautifulSoup(response.text, 'lxml')
 
           apply_url = soup.find('a', {'class': "apply-job-btn reinvent-job-apply"}).get('href')
@@ -124,29 +141,44 @@ class Accenture:
           imp_info = ''
 
           descriptionSoup = BeautifulSoup(jobDescription, 'lxml')
-          
-          detailsList = descriptionSoup.find('ul').find_all('li')
-          for detail in detailsList:
-              text = detail.text
-              if 'Project Role Description' in text:
-                  postcontent = text.split(':')[1].strip()
-              elif 'Work Experience' in text:
-                  experience = text.split(':')[1].strip()
-              elif 'Job Requirements' not in text:
-                  if 'Key Responsibilities' in text:
-                      imp_info = ".".join(text.split(':')[1:]).strip()
-                  elif 'Technical Experience' in text:
-                      skills = skills + ".".join(text.split(':')[1:]).strip()
-                  elif 'Professional Attributes' in text:
-                      skills = skills + ".".join(text.split(':')[1:]).strip()
-                  elif 'Educational Qualification' in text:
-                      qualification = ".".join(text.split(':')[1:]).strip()
+          try:
+            detailsList = descriptionSoup.find('ul').find_all('li')
+            for detail in detailsList:
+                text = detail.text
+                if 'Project Role Description' in text:
+                    postcontent = text.split(':')[1].strip()
+                    postcontent = postcontent.replace('"', '')
+                    postcontent = postcontent.replace("'", '')
+                elif 'Work Experience' in text:
+                    experience = text.split(':')[1].strip()
+                    experience = experience.replace('"', '')
+                    experience = experience.replace("'", '')
+                elif 'Job Requirements' not in text:
+                    if 'Key Responsibilities' in text:
+                        imp_info = ".".join(text.split(':')[1:]).strip()
+                        imp_info = imp_info.replace('"', '')
+                        imp_info = imp_info.replace("'", '')
+                    elif 'Technical Experience' in text:
+                        skills = skills + ".".join(text.split(':')[1:]).strip()
+                        skills = skills.replace('"', '')
+                        skills = skills.replace("'", '')
+                    elif 'Professional Attributes' in text:
+                        skills = skills + ".".join(text.split(':')[1:]).strip()
+                        skills = skills.replace('"', '')
+                        skills = skills.replace("'", '')
+                    elif 'Educational Qualification' in text:
+                        qualification = ".".join(text.split(':')[1:]).strip()
+                        qualification = qualification.replace('"', '')
+                        qualification = qualification.replace("'", '')
+          except:
+            pass
           self.threadlock.acquire()
           self.dbObj.upload_job_meta_upd(POST_AUTHOR, postcontent, posttitle, companyname, location, jobtype, 
                               search_page_no, apply_url, qualification, skills, experience, salary, 
                               imp_info)
           self.dbObj.change_status(job_url)
           self.threadlock.release()
+          self.logger_obj.info(f"scraped {page_url} - {job_url}")
         
         except Exception as resp_err:
             self.logger_obj.critical(f'Error while scraping data from {job_url} and inserting data: {resp_err}')
@@ -163,8 +195,8 @@ class Accenture:
 if __name__ == '__main__':
     t1=time.time()
     obj = Accenture('accenture')
-    obj.dbObj.create_sc_stat_tb()
-    obj.insertJobLinks()
+    # obj.dbObj.create_sc_stat_tb()
+    # obj.insertJobLinks()
     obj.scrape_jobs_multi_thread()
     print(f'Time taken to complete scraping all {obj.total_count} is : {time.time()-t1}s')
     if os.stat(f'{obj.company}_logs_{date.today().strftime("%d_%m_%Y")}.log').st_size!=0:
