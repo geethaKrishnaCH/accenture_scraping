@@ -182,7 +182,7 @@ class Accenture:
         
         except Exception as resp_err:
             self.logger_obj.critical(f'Error while scraping data from {job_url} and inserting data: {resp_err}')
-            # self.dbObj.exit_fun()
+            self.dbObj.del_not_existing(job_url)
 
     def scrape_jobs_multi_thread(self):
       self.dbObj.create_trial_job_meta_tb()
@@ -195,9 +195,10 @@ class Accenture:
 if __name__ == '__main__':
     t1=time.time()
     obj = Accenture('accenture')
-    # obj.dbObj.create_sc_stat_tb()
-    # obj.insertJobLinks()
+    obj.dbObj.create_sc_stat_tb()
+    obj.insertJobLinks()
     obj.scrape_jobs_multi_thread()
+    obj.dbObj.delete_temp_table()
     print(f'Time taken to complete scraping all {obj.total_count} is : {time.time()-t1}s')
     if os.stat(f'{obj.company}_logs_{date.today().strftime("%d_%m_%Y")}.log').st_size!=0:
         obj.dbObj.mail_log_file()
